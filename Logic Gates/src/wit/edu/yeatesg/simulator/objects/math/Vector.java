@@ -18,10 +18,23 @@ public class Vector
 		x = (int) (terminal.x - initial.x);
 		y = (int) (terminal.y - initial.y);
 	}
+	
+	public Vector(BigPoint initial, BigPoint terminal)
+	{
+		initial = initial == null ? new BigPoint(0, 0) : initial;
+		terminal = terminal == null ? new BigPoint(0, 0) : terminal;
+		x = (int) (terminal.x - initial.x);
+		y = (int) (terminal.y - initial.y);
+	}
 
 	public Vector multiply(int t)
 	{
 		return new Vector(x * t, y * t);
+	}
+	
+	public double getLength()
+	{
+		return Math.sqrt(x*x + y*y);
 	}
 	
 	@Override

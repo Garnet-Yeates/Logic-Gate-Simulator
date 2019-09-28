@@ -8,8 +8,11 @@ public abstract class SignalReceiver extends SignalEntity
 	
 	public void transmit()
 	{
-		status = true;
-		justUpdated = true;
+		if (!justUpdated)
+		{
+			status = true;
+			justUpdated = true;
+		}
 	}
 	
 	public Wire getConnectedWire()

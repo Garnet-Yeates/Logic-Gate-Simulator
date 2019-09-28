@@ -17,7 +17,7 @@ public abstract class SignalEntity extends Entity
 		status = b;
 	}
 	
-	public boolean getJustUpdated()
+	public boolean justUpdated()
 	{
 		return justUpdated;
 	}

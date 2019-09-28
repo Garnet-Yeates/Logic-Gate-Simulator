@@ -44,37 +44,14 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 		
 		Wire w1 = new Wire(new BigPoint(5, 5), new BigPoint(5, 10), circuit);
 		Wire w2 = new Wire(new BigPoint(5, 8), new BigPoint(10, 8), circuit);
-	}
-	
-	private void adjustDimensions()
-	{
-		int width = prefWidth ;
-		int height = prefHeight;
-		if (width % circuit.getGapBetweenPoints() != 0)
-		{
-			width -= width % circuit.getGapBetweenPoints();
-		}
-		if (height % circuit.getGapBetweenPoints() != 0)
-		{
-			height -= height % circuit.getGapBetweenPoints();
-		}
-		this.width = width;
-		this.height = height;
-		
-		Dimension d = new Dimension(width, height);
-		setSize(d);
-		setPreferredSize(d);
-		frame.setPreferredSize(new Dimension(width, height));
-		repaint();
-		frame.pack();
-
+		Wire w3 = new Wire(new BigPoint(5, 5), new BigPoint(20, 5), circuit);
 	}
 	
 	@Override
 	public void paint(Graphics g)
 	{
 		super.paint(g);
-		g.setColor(new Color(220, 220, 220));
+		g.setColor(new Color(240, 240, 240));
 		g.fillRect(0, 0, width, height);
 		for (int xPos = 0; xPos <= width; xPos += circuit.getGapBetweenPoints())
 		{
@@ -90,7 +67,7 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 				yOff = yOff % height;
 				yOff = yOff % (circuit.getGapBetweenPoints());
 
-				g.setColor(Color.DARK_GRAY);
+				g.setColor(Color.GRAY);
 				LittlePoint drawLocation = new LittlePoint(xPos + xOff, yPos + yOff);
 				drawLocation.addOffset(circuit.getGridPointDrawOffset());
 				g.fillRect((int)drawLocation.x, (int)drawLocation.y, circuit.getGridPointDrawSize(), circuit.getGridPointDrawSize());
@@ -100,11 +77,10 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 			LittlePoint origin = editorCoordsToPanelCoords(new LittlePoint(0, 0));
 			origin.addOffset(circuit.getGridPointDrawOffset());
 			g.fillRect((int)origin.x, (int)origin.y, circuit.getGridPointDrawSize(), circuit.getGridPointDrawSize());
-		
 
 			for (Entity e : circuit.getEntities())
 			{
-				e.draw(g.create());
+				e.draw(g);
 			}
 		}
 	}
@@ -170,7 +146,7 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 	@Override
 	public void mouseDragged(MouseEvent e)
 	{
-		if (middleClickHeld)
+		if (middleClickHeld || holdingSpce)
 		{
 			Vector dragVector = new Vector(lastDraggedLocation, getPanelCoordinates(e)).multiply(1);
 			lastDraggedLocation = getPanelCoordinates(e);
@@ -186,32 +162,40 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 	}
 
 	boolean holdingCtrl = false;
+	boolean holdingSpce = false;
 	
 	@Override
 	public void keyPressed(KeyEvent e)
 	{
-		if (e.getKeyCode() == KeyEvent.VK_CONTROL)
+		switch (e.getKeyCode())
 		{
-			holdingCtrl = true;
-		}
-		
-		if (e.getKeyCode() == KeyEvent.VK_EQUALS && holdingCtrl)
-		{
-			zoom(true);
-		}
-		else if (e.getKeyCode() == KeyEvent.VK_MINUS)
-		{
+		case KeyEvent.VK_SPACE:
+			holdingSpce = true;
+			break;
+		case KeyEvent.VK_MINUS:
 			zoom(false);
+			break;
+		case KeyEvent.VK_EQUALS:
+			if (holdingCtrl) zoom(true);
+			break;
+		case KeyEvent.VK_CONTROL:
+			holdingCtrl = true;
+			break;
 		}
 	}
 
 	@Override
 	public void keyReleased(KeyEvent e)
 	{
-		if (e.getKeyCode() == KeyEvent.VK_CONTROL)
+		switch (e.getKeyCode())
 		{
+		case KeyEvent.VK_CONTROL:
 			holdingCtrl = false;
-		}		
+			break;
+		case KeyEvent.VK_SPACE:
+			holdingSpce = false;
+			break;
+		}
 	}
 
 	@Override
@@ -245,13 +229,15 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 		lastDraggedLocation = getPanelCoordinates(e);
 		middleClickHeld = e.getButton() == 2 ? true : false;
 		
+		for (WireJunction j : WireJunction.getAllWireJunctions(circuit))
+		{
+			System.out.println("JUNCTION @ " + j.getLocation());
+		}
+		
 		for (Wire w : circuit.getAllWires())
 		{
-			System.out.println(w.getStartPoint() + " to " + w.getEndPoint());
-			for (BigPoint p : w.getJunctionLocations())
-			{
-				System.out.println("JUNCTION @ " + p);
-			}
+			System.out.println(w);;
+
 		}
 	}
 
@@ -290,8 +276,8 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 	}
 
 	@Override
-	public void componentShown(ComponentEvent arg0) {
-		// TODO Auto-generated method stub
-		
+	public void componentShown(ComponentEvent arg0)
+	{
+		// TODO Auto-generated method stub	
 	}
 }

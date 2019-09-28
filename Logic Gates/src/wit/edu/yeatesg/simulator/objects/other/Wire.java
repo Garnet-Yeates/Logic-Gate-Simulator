@@ -1,6 +1,7 @@
 package wit.edu.yeatesg.simulator.objects.other;
 import java.awt.Color;
 import java.awt.Graphics;
+import java.time.temporal.JulianFields;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -9,27 +10,30 @@ import wit.edu.yeatesg.simulator.objects.abstractt.SignalReceiver;
 import wit.edu.yeatesg.simulator.objects.abstractt.SignalSender;
 import wit.edu.yeatesg.simulator.objects.math.BigPoint;
 import wit.edu.yeatesg.simulator.objects.math.LittlePoint;
+import wit.edu.yeatesg.simulator.objects.math.Vector;
 
 public class Wire extends SignalEntity
-{	
-	private ArrayList<Wire> adjacentWires;
-	
+{		
 	private BigPoint startPoint;
 	private BigPoint endPoint;
 	
 	private SignalEntity startConnection;
 	private SignalEntity endConnection;
 	
+	private ArrayList<WireJunction> connectedJunctions;
+	
 	private boolean horizontal;
 		
 	public Wire(BigPoint startPoint, BigPoint endPoint, Circuit circuit)
 	{
 		this(startPoint, endPoint, null, null, circuit);
-		
 	}
+	
+	int numTimesWireHasBeenCreated = 0;
 	
 	public Wire(BigPoint startPoint, BigPoint endPoint, SignalEntity startConnection, SignalEntity endConnection, Circuit circuit)
 	{
+		System.out.println(++numTimesWireHasBeenCreated + " many wires have been created");
 		assert startPoint.x == endPoint.x || startPoint.y == endPoint.y;
 		horizontal = startPoint.x == endPoint.x ? false : true;
 		
@@ -39,8 +43,7 @@ public class Wire extends SignalEntity
 		this.startConnection = startConnection;
 		this.endConnection = endConnection;
 		
-		adjacentWires = new ArrayList<>();
-		junctionPoints = new ArrayList<BigPoint>();
+		connectedJunctions = new ArrayList<>();
 		
 		circuit.addEntity(this);
 		
@@ -102,73 +105,78 @@ public class Wire extends SignalEntity
 			}
 		}
 		
-		Wire.updateAllAdjacentWires(circuit);
+		Wire.updateWires(circuit);
 	}
 	
-	public static void updateAllAdjacentWires(Circuit circuit)
+	public static void updateWires(Circuit circuit)
 	{	
+		WireJunction.removeAllWireJunctions(circuit);
+		System.out.println("removeWiresJunctions()");
+		
 		for (Wire w : circuit.getAllWires())
 		{
-			w.adjacentWires.clear();
-			w.junctionPoints.clear();
+			w.connectedJunctions.clear();
 		}
 		
 		for (Wire w : circuit.getAllWires())
 		{
-			for (Wire w2 : circuit.getAllWires())
+			ArrayList<Wire> startPointInterceptions = Wire.wiresThatHaveAnEdgePointAt(w.startPoint, w.circuit);
+			ArrayList<Wire> endPointInterceptions = Wire.wiresThatHaveAnEdgePointAt(w.endPoint, w.circuit);
+			BigPoint interceptPoint = null;
+			if (startPointInterceptions.size() >= 3)
 			{
-				if (w.intercepts(w2))
+				System.out.println(startPointInterceptions.size());
+				System.out.println(circuit.getAllWires().size());
+				interceptPoint = w.startPoint.clone();
+				for (Wire wireToConnect : startPointInterceptions)
 				{
-					if (!w.adjacentWires.contains(w2))
+					if (!wireToConnect.hasJunctionAt(interceptPoint))
 					{
-						w.adjacentWires.add(w2);
-					}
-					if (!w2.adjacentWires.contains(w))
-					{
-						w2.adjacentWires.add(w);
+						wireToConnect.connectJunction(interceptPoint);
 					}
 				}
 			}
-		}
-		
-		for (Wire w : circuit.getAllWires())
-		{
-			HashMap<BigPoint, Integer> numInterceptions = new HashMap<>();
-			for (Wire intercepting : w.adjacentWires)
+			if (endPointInterceptions.size() >= 3)
 			{
-				BigPoint interceptingPoint = null;
-				if (intercepting.startPoint.equals(w.startPoint) || intercepting.startPoint.equals(w.endPoint))
-				{
-					interceptingPoint = intercepting.startPoint;
-				}
-				if (intercepting.endPoint.equals(w.startPoint) || intercepting.endPoint.equals(w.endPoint))
-				{
-					interceptingPoint = intercepting.endPoint;
-				}
-				
-				if (interceptingPoint != null)
-				{
-					if (numInterceptions.containsKey(interceptingPoint))
-					{
-						numInterceptions.put(interceptingPoint, numInterceptions.get(interceptingPoint) + 1);
-					}
-					else
-					{
-						numInterceptions.put(interceptingPoint, 0);
-					}
-				}
+				interceptPoint = w.endPoint.clone();
 			}
 			
-			for (BigPoint p : numInterceptions.keySet())
-			{
-				if (numInterceptions.get(p) >= 2)
-				{
-					w.addJunctionPoint(p);
-				}
-			}
 		}
-		
 		circuit.refreshTransmissions();
+	}
+	
+	public void connectJunction(BigPoint p)
+	{
+		if (WireJunction.hasJunctionAt(p, circuit))
+		{
+			System.out.print("has");
+			WireJunction junc = WireJunction.getJunctionAt(p, circuit);
+			junc.connectToWire(this);
+			connectedJunctions.add(junc);
+		}
+		else
+		{
+			System.out.println("IMA BUST " + p);
+			WireJunction junc = new WireJunction(p, circuit);
+			junc.connectToWire(this);
+			connectedJunctions.add(junc);
+		}
+	}
+	
+	public boolean disconnectJunction(WireJunction wireJunction)
+	{
+		if (connectedJunctions.contains(wireJunction))
+		{
+			connectedJunctions.remove(wireJunction);
+			return true;
+		}
+		return false;
+	}
+	
+	@SuppressWarnings("unchecked")
+	public ArrayList<WireJunction> getConnectedJunctions()
+	{
+		return (ArrayList<WireJunction>) connectedJunctions.clone();
 	}
 	
 	public boolean intercepts(Wire other)
@@ -178,26 +186,6 @@ public class Wire extends SignalEntity
 			return true;
 		}
 		return false;
-	}
-	
-	private ArrayList<BigPoint> junctionPoints;
-	
-	private void addJunctionPoint(BigPoint p)
-	{
-		junctionPoints.add(p);
-	}
-	
-
-	@SuppressWarnings("unchecked")
-	public ArrayList<BigPoint> getJunctionLocations()
-	{
-		return (ArrayList<BigPoint>) junctionPoints.clone();
-	}
-	
-	public void connect(Wire other)
-	{
-		other.adjacentWires.add(this);
-		this.adjacentWires.add(other);
 	}
 	
 	public BigPoint getStartPoint()
@@ -254,19 +242,19 @@ public class Wire extends SignalEntity
 	@Override
 	public void transmit()
 	{
-		status = true;
-		justUpdated = true;
-		for (Wire adj : adjacentWires)
+		if (!justUpdated)
 		{
-			if (!adj.justUpdated)
+			status = true;
+			justUpdated = true;
+			for (WireJunction j : connectedJunctions)
 			{
-				adj.transmit();
+				j.transmit();
 			}
-		}
-		
-		if (hasOutputConnection())
-		{
-			getOutputConnection().transmit();
+			
+			if (hasOutputConnection())
+			{
+				getOutputConnection().transmit();
+			}
 		}
 	}
 
@@ -303,14 +291,54 @@ public class Wire extends SignalEntity
 		return status;
 	}
 
+	
 	@Override
 	public void draw(Graphics g)
 	{
 		EditorPanel panel = circuit.getEditorPanel();
 		GraphicsTools graphics = new GraphicsTools(panel, g);
-		if (!horizontal) graphics.drawVerticalLine(startPoint, endPoint, g, 0);
-		else graphics.drawHorizontalLine(startPoint, endPoint, g, 0);
-		
+		System.out.println(Color.GREEN.getRed() + " " + Color.GREEN.getGreen() + " " + Color.GREEN.getBlue());
+		int extraThicc = circuit.getGapBetweenPoints() / 8;
+		if (!horizontal) graphics.drawVerticalLine(startPoint, endPoint, g, extraThicc + circuit.getGridPointDrawOffset().x);
+		else graphics.drawHorizontalLine(startPoint, endPoint, g, extraThicc + circuit.getGridPointDrawOffset().x);
+		// TODO Auto-generated method stub	
+	}
+	
+	public static ArrayList<Wire> wiresThatHaveAnEdgePointAt(BigPoint p, Circuit circuit)
+	{
+		ArrayList<Wire> list = new ArrayList<>();
+		for (Wire w : circuit.getAllWires())
+		{
+			if (w.getStartPoint().equals(p) || w.getEndPoint().equals(p))
+			{
+				list.add(w);
+			}
+		}
+		return list;
+	}
+	
+	public boolean hasJunctionAt(BigPoint p)
+	{
+		for (WireJunction junc : connectedJunctions)
+		{
+			if (junc.getLocation().equals(p))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	@Override
+	public String toString()
+	{
+		Vector dir = new Vector(startPoint, endPoint);
+		String direction = horizontal ? dir.x > 0 ? "right" : "left" : dir.y > 0  ? "down" : "up";
+		return startPoint + " -> " + (int) dir.getLength() + " units " + direction + " -> " + endPoint;
+	}
+
+	@Override
+	public void onDelete() {
 		// TODO Auto-generated method stub
 		
 	}

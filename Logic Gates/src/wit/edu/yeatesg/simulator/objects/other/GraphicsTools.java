@@ -36,7 +36,6 @@ public class GraphicsTools
 		int yExtender = panel.getCircuit().getGridPointDrawOffset().y + - extraThickness;
 		for (int i = 0; i < panel.getCircuit().getGridPointDrawSize() + extraThickness*2; i++, xPos++)
 		{
-			g.setColor(Color.GREEN);
 			g.drawLine(xPos, topLoc.y + yExtender, xPos, bottomLoc.y - yExtender);
 		}
 	}
@@ -60,7 +59,6 @@ public class GraphicsTools
 		int xExtender = panel.getCircuit().getGridPointDrawOffset().x + - extraThickness;
 		for (int i = 0; i < panel.getCircuit().getGridPointDrawSize() + extraThickness*2; i++, yPos++)
 		{
-			g.setColor(Color.GREEN);
 			g.drawLine(leftLoc.x + xExtender, yPos, rightLoc.x - xExtender, yPos);
 		}
 	}

@@ -12,7 +12,7 @@ public class Circuit
 	private ArrayList<Entity> entities;
 	private EditorPanel panel;
 	private Vector offset;
-	private int gapBetweenPoints = 30;
+	private int gapBetweenPoints = 20;
 	
 	public Circuit(EditorPanel panel)
 	{
@@ -65,25 +65,25 @@ public class Circuit
 	
 	public boolean canZoomIn()
 	{
-		return gapBetweenPoints < 70;
+		return gapBetweenPoints < 40;
 	}
 	
 	public boolean canZoomOut()
 	{
-		return gapBetweenPoints > 10; 
+		return gapBetweenPoints > 5; 
 	}
 	
 	public boolean zoom(boolean in)
 	{
 		if (in && canZoomIn())
 		{
-			gapBetweenPoints += 10;
+			gapBetweenPoints += 5;
 			return true;
 		}
 		
 		if (!in && canZoomOut())
 		{
-			gapBetweenPoints -= 10;
+			gapBetweenPoints -= 5;
 			return true;
 		}
 		return false;
@@ -93,12 +93,16 @@ public class Circuit
 	{
 		int r = gapBetweenPoints;
 		int size = 1;
-		size = (r >= 10) ? 3 : size;
-		size = (r >= 20) ? 3 : size;
-		size = (r >= 30) ? 3 : size;
-		size = (r >= 40) ? 5 : size;
-		size = (r >= 50) ? 5 : size;
-		size = (r >= 60) ? 7 : size;
+		size = (r >= 5) ? 1 : size;
+		size = (r >= 10) ? 1 : size;
+		size = (r >= 15) ? 1 : size;
+		size = (r >= 20) ? 2 : size;
+		size = (r >= 25) ? 2 : size;
+		size = (r >= 30) ? 2 : size;
+		size = (r >= 35) ? 3 : size;
+		size = (r >= 40) ? 3 : size;
+
+
 		return size;
 	}
 	
@@ -108,7 +112,7 @@ public class Circuit
 		Vector offset = new Vector(0, 0);
 		offset = (size == 1) ? new Vector(-0, -0) : offset; 
 		offset = (size == 3) ? new Vector(-1, -1) : offset; 
-		offset = (size == 5) ? new Vector(-2, -2) : offset; 
+		offset = (size == 2) ? new Vector(-0, -0) : offset; 
 		offset = (size == 7) ? new Vector(-3, -3) : offset; 
 		offset = (size == 9) ? new Vector(-4, -4) : offset; 
 		offset = (size == 11) ? new Vector(-5, -5) : offset;
@@ -147,6 +151,24 @@ public class Circuit
 			}
 		}
 		return wireList;
+	}
+	
+	public ArrayList<WireJunction> getAllWireJunctions()
+	{
+		ArrayList<WireJunction> junctionList = new ArrayList<>();
+		for (Entity e : getEntities())
+		{
+			if (e instanceof WireJunction)
+			{
+				junctionList.add((WireJunction) e);
+			}
+		}
+		return junctionList;
+	}
+	
+	public boolean remove(Entity e)
+	{
+		return entities.remove(e);
 	}
 	
 	public ArrayList<SignalSender> getAllSignalSenders()

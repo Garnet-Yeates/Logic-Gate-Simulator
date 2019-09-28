@@ -8,9 +8,7 @@ import wit.edu.yeatesg.simulator.objects.math.Vector;
 import wit.edu.yeatesg.simulator.objects.other.Circuit;
 
 public abstract class Entity
-{	
-	public static final ArrayList<Entity> allEntities = new ArrayList<Entity>();
-	
+{		
 	protected BigPoint location;
 	
 	protected Circuit circuit;
@@ -151,4 +149,13 @@ public abstract class Entity
 			}
 		}
 	}
+	
+	public void delete()
+	{
+		circuit.remove(this);
+		onDelete();
+	}
+	
+	public abstract void onDelete();
+	
 }
