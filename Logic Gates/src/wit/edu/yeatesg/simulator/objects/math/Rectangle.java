@@ -1,6 +1,8 @@
 package wit.edu.yeatesg.simulator.objects.math;
 
-public class Rectangle
+import java.util.ArrayList;
+
+public class Rectangle extends Shape
 {
 	public BigPoint topLeft, topRight, bottomLeft, bottomRight;
 
@@ -10,11 +12,23 @@ public class Rectangle
 		this.topRight = topRight;
 		this.bottomLeft = bottomLeft;
 		this.bottomRight = bottomRight;
+		
 	}
 	
 	public Rectangle(BigPoint topLeft, BigPoint bottomRight)
 	{
 		this(topLeft, new BigPoint(bottomRight.x, topLeft.y), new BigPoint(topLeft.x, bottomRight.y), bottomRight);
+	}
+	
+	@Override
+	public ArrayList<BigPoint> getAllPoints()
+	{
+		ArrayList<BigPoint> list = new ArrayList<BigPoint>();
+		list.add(topLeft);
+		list.add(topRight);
+		list.add(bottomLeft);
+		list.add(bottomRight);
+		return list;
 	}
 
 	public Rectangle copy()

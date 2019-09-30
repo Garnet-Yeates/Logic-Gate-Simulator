@@ -14,4 +14,9 @@ public abstract class SignalSender extends SignalEntity
 			connectingTo.transmit();
 		}
 	}	
+	
+	public void disconnectWire()
+	{
+		connectingTo = null;
+	}
 }		

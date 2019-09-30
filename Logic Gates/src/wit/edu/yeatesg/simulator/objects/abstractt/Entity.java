@@ -1,11 +1,15 @@
 package wit.edu.yeatesg.simulator.objects.abstractt;
+import java.awt.Color;
 import java.awt.Graphics;
 import java.util.ArrayList;
 
 import wit.edu.yeatesg.simulator.objects.math.BigPoint;
+import wit.edu.yeatesg.simulator.objects.math.LittlePoint;
 import wit.edu.yeatesg.simulator.objects.math.Rectangle;
+import wit.edu.yeatesg.simulator.objects.math.Shape;
 import wit.edu.yeatesg.simulator.objects.math.Vector;
 import wit.edu.yeatesg.simulator.objects.other.Circuit;
+import wit.edu.yeatesg.simulator.objects.other.GraphicsTools;
 
 public abstract class Entity
 {		
@@ -15,13 +19,40 @@ public abstract class Entity
 	
 	protected Entity parentEntity;
 	protected Entity[] childEntities;
-	
-	protected Rectangle bounds;
-	protected Rectangle hoverBounds;
-	
+		
 	protected boolean movable;
 	
 	public abstract void draw(Graphics g);
+	
+	public void drawSelectionIndicator(Graphics g)
+	{
+		Shape shape = getSelectionBounds();
+		for (BigPoint p : shape.getAllPoints())
+		{
+			GraphicsTools.drawSelectionCorners(p, Color.BLACK, new Color(255, 242, 204), circuit.getGapBetweenPoints() / 2, g, circuit);
+		}
+	}
+	
+	public abstract Shape getSelectionBounds();
+	
+	public boolean withinDrawingBounds()
+	{
+		return withinDrawingBounds(location, circuit);
+	}	
+	
+	public static boolean withinDrawingBounds(BigPoint loc, Circuit c)
+	{
+		LittlePoint panelCoords = LittlePoint.getPanelCoords(loc, c);
+		int width = c.getEditorPanel().getWidth();
+		int height = c.getEditorPanel().getHeight();
+		int x = panelCoords.x;
+		int y = panelCoords.y;
+		if (x > 0 - width*0.05 && x < width + width*0.05 && y > 0 - height*0.05 && y < height + height*0.05)
+		{
+			return true;
+		}
+		return false;
+	}
 	
 	/**
 	 * Obtains the location of the origin point of this entity
@@ -31,43 +62,7 @@ public abstract class Entity
 	{
 		return location;
 	}
-	
-	// TODO remember that im going to put a "Entity selected" and "Entity hovered" field in the main GUI
-	// part of this program. And I need to remember that when something is hovered that it overrides
-	// selecting anything else (aka when you click and something that is within its parents hitbox is
-	// hovered, it selects the hovered component and not the whole parent component
-	
-	/**
-	 * This represents the area around the origin point of this Entity that is sensitive
-	 * to clicks. If the user clicks anywhere in this Rectangle, then this component
-	 * should be selected
-	 * @return the area around this entity that is sensitive to clicks
-	 */
-	public Rectangle getBounds()
-	{
-		return bounds.copy();
-	}
-	
-	/**
-	 * This represents the area around the origin point of this Entity that is sensitive
-	 * to the mouse hovering over it. If the user moves the mouse anywhere in this Rectangle,
-	 * then this component should be hovered
-	 * @return the area around this entity that is sensitive to mouse hovering
-	 */
-	public Rectangle getHoverBounds()
-	{
-		return hoverBounds.copy();
-	}
-	
-	/**
-	 * Determines whether or not this entity has boundaries that are sensitive to mouse hovering
-	 * @return whether or not this entity has hover bounds
-	 */
-	public boolean hasHoverBounds()
-	{
-		return hoverBounds != null;
-	}
-	
+
 	/**
 	 * Determines whether or not this Entity is attached to a parent entity
 	 * @return true if this Entity has a parent entity
@@ -152,10 +147,12 @@ public abstract class Entity
 	
 	public void delete()
 	{
-		circuit.remove(this);
+		circuit.removeEntity(this);
 		onDelete();
 	}
 	
-	public abstract void onDelete();
+
+	public abstract boolean intercepts(BigPoint p);
 	
+	public abstract void onDelete();
 }

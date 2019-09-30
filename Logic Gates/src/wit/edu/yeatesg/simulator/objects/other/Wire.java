@@ -5,11 +5,15 @@ import java.time.temporal.JulianFields;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import wit.edu.yeatesg.simulator.objects.abstractt.InterferingEntityException;
+import wit.edu.yeatesg.simulator.objects.abstractt.InvalidWireException;
 import wit.edu.yeatesg.simulator.objects.abstractt.SignalEntity;
 import wit.edu.yeatesg.simulator.objects.abstractt.SignalReceiver;
 import wit.edu.yeatesg.simulator.objects.abstractt.SignalSender;
 import wit.edu.yeatesg.simulator.objects.math.BigPoint;
+import wit.edu.yeatesg.simulator.objects.math.Line;
 import wit.edu.yeatesg.simulator.objects.math.LittlePoint;
+import wit.edu.yeatesg.simulator.objects.math.Shape;
 import wit.edu.yeatesg.simulator.objects.math.Vector;
 
 public class Wire extends SignalEntity
@@ -28,13 +32,9 @@ public class Wire extends SignalEntity
 	{
 		this(startPoint, endPoint, null, null, circuit);
 	}
-	
-	int numTimesWireHasBeenCreated = 0;
-	
+		
 	public Wire(BigPoint startPoint, BigPoint endPoint, SignalEntity startConnection, SignalEntity endConnection, Circuit circuit)
-	{
-		System.out.println(++numTimesWireHasBeenCreated + " many wires have been created");
-		assert startPoint.x == endPoint.x || startPoint.y == endPoint.y;
+	{		
 		horizontal = startPoint.x == endPoint.x ? false : true;
 		
 		this.circuit = circuit;
@@ -43,15 +43,23 @@ public class Wire extends SignalEntity
 		this.startConnection = startConnection;
 		this.endConnection = endConnection;
 		
+		checkInvalidWire();
+		
 		connectedJunctions = new ArrayList<>();
 		
 		circuit.addEntity(this);
+		wireBisectCheck(circuit);
 		
+		Wire.updateWires(circuit);
+	}
+	
+	public static void wireBisectCheck(Wire w, Circuit circuit)
+	{
 		for (Wire intercepting : circuit.getAllWires())
 		{	
-			if (intercepting != this && (startPoint.interceptsWire(intercepting) || endPoint.interceptsWire(intercepting)))
+			if (intercepting != w && (w.startPoint.intercepts(intercepting) || w.endPoint.intercepts(intercepting)))
 			{
-				BigPoint interceptingPoint = startPoint.interceptsWire(intercepting) ? startPoint : endPoint;
+				BigPoint interceptingPoint = w.startPoint.intercepts(intercepting) ? w.startPoint : w.endPoint;
 				
 				if (intercepting.horizontal)
 				{
@@ -104,14 +112,35 @@ public class Wire extends SignalEntity
 				
 			}
 		}
+	}
+	
+	public static void wireBisectCheck(Circuit c)
+	{
+		for (Wire w : c.getAllWires())
+		{
+			Wire.wireBisectCheck(w, c);
+		}
+	}
+	
+	public void checkInvalidWire()
+	{
+		if (!((startPoint.x == endPoint.x && startPoint.y != endPoint.y) || (startPoint.y == endPoint.y && startPoint.x != endPoint.x)))
+		{
+			throw new InvalidWireException();
+		}
 		
-		Wire.updateWires(circuit);
+		for (Wire w : Wire.wiresThatHaveAnEdgePointAt(startPoint, circuit))
+		{
+			if (Wire.wiresThatHaveAnEdgePointAt(endPoint, circuit).contains(w))
+			{
+				throw new InterferingEntityException();
+			}
+		}
 	}
 	
 	public static void updateWires(Circuit circuit)
 	{	
 		WireJunction.removeAllWireJunctions(circuit);
-		System.out.println("removeWiresJunctions()");
 		
 		for (Wire w : circuit.getAllWires())
 		{
@@ -123,10 +152,8 @@ public class Wire extends SignalEntity
 			ArrayList<Wire> startPointInterceptions = Wire.wiresThatHaveAnEdgePointAt(w.startPoint, w.circuit);
 			ArrayList<Wire> endPointInterceptions = Wire.wiresThatHaveAnEdgePointAt(w.endPoint, w.circuit);
 			BigPoint interceptPoint = null;
-			if (startPointInterceptions.size() >= 3)
+			if (startPointInterceptions.size() >= 2)
 			{
-				System.out.println(startPointInterceptions.size());
-				System.out.println(circuit.getAllWires().size());
 				interceptPoint = w.startPoint.clone();
 				for (Wire wireToConnect : startPointInterceptions)
 				{
@@ -136,27 +163,31 @@ public class Wire extends SignalEntity
 					}
 				}
 			}
-			if (endPointInterceptions.size() >= 3)
+			if (endPointInterceptions.size() >= 2)
 			{
 				interceptPoint = w.endPoint.clone();
-			}
-			
+				for (Wire wireToConnect : endPointInterceptions)
+				{
+					if (!wireToConnect.hasJunctionAt(interceptPoint))
+					{
+						wireToConnect.connectJunction(interceptPoint);
+					}
+				}
+			}	
 		}
 		circuit.refreshTransmissions();
 	}
 	
 	public void connectJunction(BigPoint p)
 	{
-		if (WireJunction.hasJunctionAt(p, circuit))
+		if (p.hasInterceptingWireJunction(circuit))
 		{
-			System.out.print("has");
-			WireJunction junc = WireJunction.getJunctionAt(p, circuit);
+			WireJunction junc = (WireJunction) p.getInterceptingEntity(circuit);
 			junc.connectToWire(this);
 			connectedJunctions.add(junc);
 		}
 		else
 		{
-			System.out.println("IMA BUST " + p);
 			WireJunction junc = new WireJunction(p, circuit);
 			junc.connectToWire(this);
 			connectedJunctions.add(junc);
@@ -177,6 +208,12 @@ public class Wire extends SignalEntity
 	public ArrayList<WireJunction> getConnectedJunctions()
 	{
 		return (ArrayList<WireJunction>) connectedJunctions.clone();
+	}
+	
+	@Override
+	public Shape getSelectionBounds()
+	{
+		return new Line(startPoint, endPoint);
 	}
 	
 	public boolean intercepts(Wire other)
@@ -291,16 +328,16 @@ public class Wire extends SignalEntity
 		return status;
 	}
 
+	public static final Color ON_COL = new Color(0, 255, 0);
+	public static final Color OFF_COL = new Color(0, 140, 0);
 	
 	@Override
 	public void draw(Graphics g)
 	{
-		EditorPanel panel = circuit.getEditorPanel();
-		GraphicsTools graphics = new GraphicsTools(panel, g);
-		System.out.println(Color.GREEN.getRed() + " " + Color.GREEN.getGreen() + " " + Color.GREEN.getBlue());
-		int extraThicc = circuit.getGapBetweenPoints() / 8;
-		if (!horizontal) graphics.drawVerticalLine(startPoint, endPoint, g, extraThicc + circuit.getGridPointDrawOffset().x);
-		else graphics.drawHorizontalLine(startPoint, endPoint, g, extraThicc + circuit.getGridPointDrawOffset().x);
+		g.setColor(status ? ON_COL : OFF_COL);
+		int extraThicc = circuit.getGapBetweenPoints() / 9;
+		if (!horizontal) GraphicsTools.drawVerticalLine(startPoint, endPoint, extraThicc + circuit.getGridPointDrawOffset(), g, circuit);
+		else GraphicsTools.drawHorizontalLine(startPoint, endPoint, extraThicc + circuit.getGridPointDrawOffset(), g, circuit);
 		// TODO Auto-generated method stub	
 	}
 	
@@ -338,8 +375,52 @@ public class Wire extends SignalEntity
 	}
 
 	@Override
-	public void onDelete() {
-		// TODO Auto-generated method stub
+	public void onDelete()
+	{
+		if (hasInputConnection())
+		{
+			getInputConnection().disconnectWire();
+		}
 		
+		if (hasOutputConnection())
+		{
+			getOutputConnection().disconnectWire();
+		}
 	}
+
+	@Override
+	public boolean intercepts(BigPoint p)
+	{
+		if (isHorizontal())
+		{
+			if (p.y == getLeftPoint().y && p.x >= getLeftPoint().x && p.x <= getRightPoint().x)
+			{
+				return true;
+			}
+		}
+		else
+		{
+			if (p.x == getTopPoint().x && p.y >= getTopPoint().y && p.y <= getBottomPoint().y)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public void setStartPoint(BigPoint p)
+	{
+		startPoint = p;
+	}
+	
+	public void setEndPoint(BigPoint p)
+	{
+		endPoint = p;
+	}
+	
+	@Override
+	public boolean withinDrawingBounds()
+	{
+		return withinDrawingBounds(endPoint, circuit) || withinDrawingBounds(startPoint, circuit);
+	}	
 }

@@ -19,4 +19,9 @@ public abstract class SignalReceiver extends SignalEntity
 	{
 		return connectingFrom;
 	}
+	
+	public void disconnectWire()
+	{
+		connectingFrom = null;
+	}
 }
