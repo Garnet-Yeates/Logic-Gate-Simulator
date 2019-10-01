@@ -45,7 +45,7 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 		Wire w4 = new Wire(new BigPoint(9, 5), new BigPoint(9, 40), circuit);
 		Wire w5 = new Wire(new BigPoint(7, 0), new BigPoint(7, 20), circuit);
 
-		w1.transmit();
+		//w1.transmit();
 		init = false;
 	}
 
@@ -58,19 +58,25 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 
 		drawBigPoints(g);
 		drawEntities(g);
-		g.setColor(Color.BLACK);
 		drawConnectionSelectionPreview(g);
 		drawSelectedEntityPoints(g);
 	}
 
+	/**
+	 * Draws all of the grid dots on the display panel. 
+	 * @param g
+	 */
 	private void drawBigPoints(Graphics g)
 	{
 		for (int xPos = 0; xPos <= width; xPos += circuit.getGapBetweenPoints())
 		{
 			for (int yPos = 0; yPos <= height; yPos += circuit.getGapBetweenPoints())
 			{
-				BigPoint p = BigPoint.fromLittlePoint(LittlePoint.getEditorCoords(new LittlePoint(xPos, yPos), circuit), circuit);
-				g.setColor(p.x == 0 && p.y == 0 ? Color.RED : Color.GRAY);
+				//System.out.println(yPos + " " + xPos);
+				LittlePoint editorCoords = LittlePoint.getEditorCoords(new LittlePoint(xPos, yPos), circuit);
+				BigPoint p = BigPoint.fromLittlePoint(editorCoords, circuit);
+				g.setColor((int) p.x == 0 && (int) p.y == 0 ? Color.RED : Color.GRAY);
+				if (g.getColor() == Color.RED) System.out.println("RED");
 				p.draw(g, circuit);
 			}
 		}
@@ -92,6 +98,7 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 	
 	private void drawConnectionSelectionPreview(Graphics g)
 	{
+		g.setColor(Color.BLACK);
 		if (mousingOverSelectionNode)
 		{
 			LittlePoint p = LittlePoint.getPanelCoords((LittlePoint.fromBigPoint(closestBigPoint, circuit)), circuit);
@@ -121,9 +128,10 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 		if (circuit.zoom(in))
 		{
 			panelCenter = LittlePoint.fromBigPoint(bigPanelCenter, circuit);
+		//	panelCenter = LittlePoint.getPanelCoords(panelCenter, circuit);
 			circuit.resetOffset();
 			circuit.modifyOffset(new Vector(width / 2, height / 2));
-			circuit.modifyOffset(new Vector(panelCenter.x / 2, panelCenter.y / 2).multiply(-1));
+			circuit.modifyOffset(new Vector(panelCenter.x, panelCenter.y).multiply(-1));
 		}
 		repaint();
 	}
@@ -203,7 +211,6 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 		}
 		else // if mousing over hitbox...
 		{
-			System.out.println("");
 			// TODO check and see if they clicked in a hitbox and shit 
 		}
 	}
