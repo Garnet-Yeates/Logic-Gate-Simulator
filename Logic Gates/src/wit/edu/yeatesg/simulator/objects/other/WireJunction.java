@@ -13,8 +13,12 @@ public class WireJunction extends SignalEntity
 {
 	private ArrayList<Wire> connectedTo;
 	
+	public static int idAssign;
+	private int id;
+	
 	public WireJunction(BigPoint location, Circuit c)
 	{
+		id = idAssign++;
 		connectedTo = new ArrayList<>();
 		this.circuit = c;
 		this.location = location;
@@ -131,4 +135,20 @@ public class WireJunction extends SignalEntity
 	{
 		return connectedTo;
 	}	
+	
+	public static boolean hasWireJunctionAt(BigPoint p, Circuit c)
+	{
+		return p.hasInterceptingWireJunction(c);
+	}
+	
+	@Override
+	public String toString()
+	{
+		String s = "Selected wire junction with the following wires: \n";
+		for (Wire w : connectedTo)
+		{
+			s += w + "\n";
+		}
+		return s;
+	}
 }

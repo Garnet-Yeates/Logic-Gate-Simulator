@@ -19,6 +19,7 @@ import wit.edu.yeatesg.simulator.objects.math.Vector;
 
 public class EditorPanel extends JPanel implements MouseListener, KeyListener, MouseMotionListener, ComponentListener
 {
+	// TODO Make it so that at a WireJunction , if all wires are the same direction they should be fused together
 	private static final long serialVersionUID = 5754945305788423567L;
 
 	public Circuit circuit;
@@ -40,10 +41,10 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 		circuit.modifyOffset(new Vector(width / 2, height / 2));
 
 		Wire w1 = new Wire(new BigPoint(5, 5), new BigPoint(5, 10), circuit);
-		Wire w2 = new Wire(new BigPoint(5, 8), new BigPoint(10, 8), circuit);
+		/*Wire w2 = new Wire(new BigPoint(5, 8), new BigPoint(10, 8), circuit);
 		Wire w3 = new Wire(new BigPoint(5, 5), new BigPoint(20, 5), circuit);
 		Wire w4 = new Wire(new BigPoint(9, 5), new BigPoint(9, 40), circuit);
-		Wire w5 = new Wire(new BigPoint(7, 0), new BigPoint(7, 20), circuit);
+		Wire w5 = new Wire(new BigPoint(7, 0), new BigPoint(7, 20), circuit);*/
 
 		//w1.transmit();
 		init = false;
@@ -68,15 +69,13 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 	 */
 	private void drawBigPoints(Graphics g)
 	{
-		for (int xPos = 0; xPos <= width; xPos += circuit.getGapBetweenPoints())
+		for (int xPos = 0; xPos <= width + circuit.getGapBetweenPoints(); xPos += circuit.getGapBetweenPoints())
 		{
-			for (int yPos = 0; yPos <= height; yPos += circuit.getGapBetweenPoints())
+			for (int yPos = 0; yPos <= height + circuit.getGapBetweenPoints(); yPos += circuit.getGapBetweenPoints())
 			{
-				//System.out.println(yPos + " " + xPos);
 				LittlePoint editorCoords = LittlePoint.getEditorCoords(new LittlePoint(xPos, yPos), circuit);
 				BigPoint p = BigPoint.fromLittlePoint(editorCoords, circuit);
 				g.setColor((int) p.x == 0 && (int) p.y == 0 ? Color.RED : Color.GRAY);
-				if (g.getColor() == Color.RED) System.out.println("RED");
 				p.draw(g, circuit);
 			}
 		}
@@ -84,14 +83,11 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 
 	private void drawEntities(Graphics g)
 	{
-		if (!init)
+		for (Entity e : circuit.getAllEntities())
 		{
-			for (Entity e : circuit.getAllEntities())
+			if (e.withinDrawingBounds())
 			{
-				if (e.withinDrawingBounds())
-				{
-					e.draw(g);
-				}
+				e.draw(g);
 			}
 		}
 	}
@@ -284,7 +280,7 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 		{
 			// Regular click on a connectable (WireJunction > Wire > ConnectionNode)
 			selectedEntity = connectionDraggingFrom;
-			System.out.println("REGG CLICK ON A CONNECTABLE NODE");
+			System.out.println("SELECTED " + selectedEntity);
 		}
 		else if (pressPoint.equals(releasePoint))
 		{
@@ -316,29 +312,25 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 
 		if ((grabbedAtStartPoint && releasePoint.equals(endPoint)) || grabbedAtEndPoint && releasePoint.equals(startPoint))
 		{
-			// DELETE THE WIRE
-			System.out.println("DELETEE THE FUCKING WIRE");
+			w.delete();
 		}
 		else
 		{
 			if (grabbedAtStartPoint)
 			{
-				// SET THE START POINT OF THE WIRE TO releasePoint
-				// DISCONNECT startPoint connection from wire
-				System.out.println("MOVE START POINT AND SHIT");
-
+				w.setStartPoint(releasePoint);
 			}
 			else
 			{
-				// SET THE END POINT OF THE WIRE TO releasePoint
-				// DISCONNECT endPoint connection from wire
-				System.out.println("MOVE END POINT AND SHIT");
+				w.setEndPoint(releasePoint);
 			}
 		}
+		Wire.updateWires(circuit);
 	}
 
 	public void positiveWireModification(BigPoint pressPoint, BigPoint releasePoint, Wire w)
 	{
+		System.out.println("Possy wossy");
 		if (canPositiveWireModification(pressPoint, releasePoint, w))
 		{
 			Wire edited = null;
@@ -355,12 +347,15 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 				BigPoint endPoint = w.getEndPoint();
 				boolean grabbedAtEndPoint = pressPoint.equals(endPoint);
 				boolean grabbedAtStartPoint = pressPoint.equals(startPoint);
+				
+				boolean movingEndPointForSplices = false;
 
 				if (grabbedAtStartPoint && ((endPoint.x == startPoint.x && endPoint.x == releasePoint.x)
 				|| (endPoint.y == startPoint.y && endPoint.y == releasePoint.y)))
 				{
 					w.setStartPoint(releasePoint);
-					Wire.wireBisectCheck(circuit);
+					movingEndPointForSplices = false;
+					Wire.wireBisectAndConnectionCheck(circuit);
 					System.out.println("NEW WIRE FROM EXTENDING STARTPOINT");
 					
 				}
@@ -368,14 +363,55 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 				|| (endPoint.y == startPoint.y && endPoint.y == releasePoint.y)))
 				{
 					w.setEndPoint(releasePoint);
-					Wire.wireBisectCheck(circuit);
+					movingEndPointForSplices = true;
+					Wire.wireBisectAndConnectionCheck(circuit);
 					System.out.println("NEW WIRE FROM EXTENDING ENDPOINT");
 				}
 				else
 				{
 					edited = new Wire(pressPoint, releasePoint, circuit);
+					movingEndPointForSplices = true;
 					System.out.println("NEW WIRE FROM WIRE OR CONNECTION NODE");
 				}
+				
+				/*if (!WireJunction.hasWireJunctionAt(releasePoint, circuit))
+				{
+					for (Wire w2 : circuit.getAllWires())
+					{
+						if (w != w2)
+						{
+							if ((w2.isHorizontal() && w.isHorizontal() ) || (!w2.isHorizontal() && !w.isHorizontal()))
+							{
+								if (releasePoint.equals(w2.getStartPoint()))
+								{
+									BigPoint w2EndPoint = w2.getEndPoint();
+									w2.delete();
+									if (movingEndPointForSplices)
+									{
+										w.setEndPoint(w2EndPoint);
+									}
+									else
+									{
+										w.setStartPoint(w2EndPoint);
+									}
+								}
+								if (releasePoint.equals(w2.getEndPoint()))
+								{
+									BigPoint w2StartPoint = w2.getStartPoint();
+									w2.delete();
+									if (movingEndPointForSplices)
+									{
+										w.setEndPoint(w2StartPoint);
+									}
+									else
+									{
+										w.setStartPoint(w2StartPoint);
+									}
+								}
+							}
+						}
+					}
+				}*/
 
 				if (releasePoint.hasInterceptingConnectionNode(circuit))
 				{
@@ -392,7 +428,6 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 		// CANT INTERCEPT A WIRE THAT IS GOING IN THE SAME DIRECTION AS IT (UNLESS INTERCEPTING ENDPOINTS)
 		ArrayList<BigPoint> betweenPoints = BigPoint.getPointsBetween(pressPoint, releasePoint);
 		boolean goingHorizontal = pressPoint.y == releasePoint.y;
-		if (betweenPoints == null) return false;
 		for (BigPoint p : betweenPoints)
 		{
 			if (p.hasInterceptingWireJunction(circuit))

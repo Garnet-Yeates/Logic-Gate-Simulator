@@ -132,7 +132,6 @@ public class BigPoint
 				p2 = temp;
 			}
 			for (int y = (int) (p1.y + 1); y < p2.y; y++) list.add(new BigPoint(x, y));
-			return list;
 		}
 		if (p1.y == p2.y)
 		{
@@ -144,9 +143,8 @@ public class BigPoint
 				p2 = temp;
 			}
 			for (int x = (int) (p1.x + 1); x < p2.x; x++) list.add(new BigPoint(x, y));
-			return list;
 		}
-		return null;
+		return list;
 	}
 	
 	public void draw(Graphics g, Circuit c)

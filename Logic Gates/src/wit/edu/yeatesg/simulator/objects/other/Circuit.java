@@ -63,9 +63,14 @@ public class Circuit
 		panel.repaint();
 	}
 	
+	int cunt = 0;
+	
 	public boolean removeEntity(Entity e)
 	{
-		return entities.remove(e);
+
+		boolean b = entities.remove(e);
+		System.out.println("Removed " + e + "? " + b);
+		return b;
 	}
 	
 	@SuppressWarnings("unchecked")
