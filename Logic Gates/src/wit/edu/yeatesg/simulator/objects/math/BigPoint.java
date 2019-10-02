@@ -158,4 +158,26 @@ public class BigPoint
 	{
 		return new BigPoint(Math.round(x), Math.round(y));
 	}
+
+	public boolean isAdjacentTo(BigPoint other)
+	{
+		for (BigPoint p : getAdjacentPoints())
+		{
+			if (p.equals(other))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public ArrayList<BigPoint> getAdjacentPoints()
+	{
+		ArrayList<BigPoint> adjList = new ArrayList<>();
+		adjList.add(new BigPoint(x - 1, y));
+		adjList.add(new BigPoint(x + 1, y));
+		adjList.add(new BigPoint(x, y - 1));
+		adjList.add(new BigPoint(x, y + 1));
+		return adjList;
+	}
 }

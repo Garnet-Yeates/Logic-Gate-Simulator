@@ -469,7 +469,6 @@ public class Wire extends SignalEntity
 		int extraThicc = circuit.getGapBetweenPoints() / 9;
 		if (!horizontal) GraphicsTools.drawVerticalLine(startPoint, endPoint, extraThicc + circuit.getGridPointDrawOffset(), g, circuit);
 		else GraphicsTools.drawHorizontalLine(startPoint, endPoint, extraThicc + circuit.getGridPointDrawOffset(), g, circuit);
-		// TODO Auto-generated method stub	
 	}
 	
 	public static ArrayList<Wire> wiresThatHaveAnEdgePointAt(BigPoint p, Circuit circuit)
