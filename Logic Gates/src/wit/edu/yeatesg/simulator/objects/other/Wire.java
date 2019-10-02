@@ -1,19 +1,13 @@
 package wit.edu.yeatesg.simulator.objects.other;
 import java.awt.Color;
 import java.awt.Graphics;
-import java.time.temporal.JulianFields;
 import java.util.ArrayList;
-import java.util.HashMap;
-
 import wit.edu.yeatesg.simulator.objects.abstractt.Entity;
 import wit.edu.yeatesg.simulator.objects.abstractt.InterferingEntityException;
 import wit.edu.yeatesg.simulator.objects.abstractt.InvalidWireException;
 import wit.edu.yeatesg.simulator.objects.abstractt.SignalEntity;
-import wit.edu.yeatesg.simulator.objects.abstractt.SignalReceiver;
-import wit.edu.yeatesg.simulator.objects.abstractt.SignalSender;
 import wit.edu.yeatesg.simulator.objects.math.BigPoint;
 import wit.edu.yeatesg.simulator.objects.math.Line;
-import wit.edu.yeatesg.simulator.objects.math.LittlePoint;
 import wit.edu.yeatesg.simulator.objects.math.Shape;
 import wit.edu.yeatesg.simulator.objects.math.Vector;
 
@@ -54,9 +48,33 @@ public class Wire extends SignalEntity
 		connectedJunctions = new ArrayList<>();
 		
 		circuit.addEntity(this);
-		wireBisectAndConnectionCheck(circuit);
+	//	wireBisectAndConnectionCheck(circuit);
 		
 		Wire.updateWires(circuit);
+	}
+	
+	public void checkInvalidWire()
+	{
+		if (!((startPoint.x == endPoint.x && startPoint.y != endPoint.y) || (startPoint.y == endPoint.y && startPoint.x != endPoint.x)))
+		{
+			throw new InvalidWireException();
+		}
+		
+		for (Wire w : Wire.wiresThatHaveAnEdgePointAt(startPoint, circuit))
+		{
+			if (Wire.wiresThatHaveAnEdgePointAt(endPoint, circuit).contains(w))
+			{
+				throw new InterferingEntityException();
+			}
+		}
+	}
+	
+	public static void updateWires(Circuit circuit)
+	{	
+		Wire.wireBisectAndConnectionCheck(circuit);		
+		Wire.junctionConnectionCheck(circuit);
+		Wire.wireMergeCheck(circuit);
+		circuit.refreshTransmissions();
 	}
 	
 	public static void wireBisectAndConnectionCheck(Circuit c)
@@ -187,30 +205,11 @@ public class Wire extends SignalEntity
 				}
 			}
 		}
-		
-		updateWires(c);
 	}
 	
-	public void checkInvalidWire()
+	public static void junctionConnectionCheck(Circuit circuit)
 	{
-		if (!((startPoint.x == endPoint.x && startPoint.y != endPoint.y) || (startPoint.y == endPoint.y && startPoint.x != endPoint.x)))
-		{
-			throw new InvalidWireException();
-		}
-		
-		for (Wire w : Wire.wiresThatHaveAnEdgePointAt(startPoint, circuit))
-		{
-			if (Wire.wiresThatHaveAnEdgePointAt(endPoint, circuit).contains(w))
-			{
-				throw new InterferingEntityException();
-			}
-		}
-	}
-	
-	public static void updateWires(Circuit circuit)
-	{	
 		WireJunction.removeAllWireJunctions(circuit);
-		
 		for (Wire w : circuit.getAllWires())
 		{
 			w.connectedJunctions.clear();
@@ -240,7 +239,10 @@ public class Wire extends SignalEntity
 				}
 			}	
 		}
-		
+	}
+	
+	public static void wireMergeCheck(Circuit circuit)
+	{
 		outer :for (WireJunction junc : circuit.getAllWireJunctions())
 		{
 			if (junc.getConnectedWires().size() > 0)
@@ -298,7 +300,6 @@ public class Wire extends SignalEntity
 				
 			}
 		}
-		circuit.refreshTransmissions();
 	}
 	
 	public void connectJunction(BigPoint p)
@@ -541,11 +542,13 @@ public class Wire extends SignalEntity
 	public void setStartPoint(BigPoint p)
 	{
 		startPoint = p;
+		Wire.updateWires(circuit);
 	}
 	
 	public void setEndPoint(BigPoint p)
 	{
 		endPoint = p;
+		Wire.updateWires(circuit);
 	}
 	
 	@Override

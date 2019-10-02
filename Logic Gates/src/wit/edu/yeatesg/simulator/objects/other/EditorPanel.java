@@ -463,7 +463,6 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 				w.setEndPoint(releasePoint);
 			}
 		}
-		Wire.updateWires(circuit);
 	}
 
 	public void positiveWireModification(BigPoint pressPoint, BigPoint releasePoint, Wire w)
@@ -489,7 +488,7 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 				|| (endPoint.y == startPoint.y && endPoint.y == releasePoint.y)))
 				{
 					w.setStartPoint(releasePoint);
-					Wire.wireBisectAndConnectionCheck(circuit);
+			//		Wire.wireBisectAndConnectionCheck(circuit);
 //					System.out.println("NEW WIRE FROM EXTENDING STARTPOINT");
 					
 				}
@@ -497,7 +496,7 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 				|| (endPoint.y == startPoint.y && endPoint.y == releasePoint.y)))
 				{
 					w.setEndPoint(releasePoint);
-					Wire.wireBisectAndConnectionCheck(circuit);
+				//	Wire.wireBisectAndConnectionCheck(circuit);
 //					System.out.println("NEW WIRE FROM EXTENDING ENDPOINT");
 				}
 				else
