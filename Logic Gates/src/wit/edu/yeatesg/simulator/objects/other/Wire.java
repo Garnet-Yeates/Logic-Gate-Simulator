@@ -1,7 +1,8 @@
 package wit.edu.yeatesg.simulator.objects.other;
-import java.awt.Color;
 import java.awt.Graphics;
 import java.util.ArrayList;
+import java.util.List;
+
 import wit.edu.yeatesg.simulator.objects.abstractt.Entity;
 import wit.edu.yeatesg.simulator.objects.abstractt.InterferingEntityException;
 import wit.edu.yeatesg.simulator.objects.abstractt.InvalidWireException;
@@ -9,7 +10,6 @@ import wit.edu.yeatesg.simulator.objects.abstractt.SignalEntity;
 import wit.edu.yeatesg.simulator.objects.math.BigPoint;
 import wit.edu.yeatesg.simulator.objects.math.Line;
 import wit.edu.yeatesg.simulator.objects.math.Shape;
-import wit.edu.yeatesg.simulator.objects.math.Vector;
 
 public class Wire extends SignalEntity
 {		
@@ -51,6 +51,7 @@ public class Wire extends SignalEntity
 	//	wireBisectAndConnectionCheck(circuit);
 		
 		Wire.updateWires(circuit);
+		checkInterferingEntity();
 	}
 	
 	public void checkInvalidWire()
@@ -100,7 +101,7 @@ public class Wire extends SignalEntity
 					w.endConnection = null;
 				}
 				
-				for (Entity e2 : c.getAllWires())
+				for (Entity e2 : c.getAllEntities())
 				{	
 					if (e2 instanceof Wire)
 					{
@@ -118,7 +119,7 @@ public class Wire extends SignalEntity
 									
 									if (intercepting.getRightPoint().equals(intercepting.getStartPoint()))
 									{
-										ConnectionNode interceptingEndConnection = intercepting.getOutputConnection();		
+										ConnectionNode interceptingEndConnection = intercepting.endConnection;		
 										intercepting.endPoint = interceptingPoint;
 										intercepting.endConnection = null;
 										Wire leftWireSplice = new Wire(oldLeftLoc, interceptingPoint, c);
@@ -126,7 +127,7 @@ public class Wire extends SignalEntity
 									}
 									else
 									{
-										ConnectionNode interceptingStartConnection = intercepting.getInputConnection();
+										ConnectionNode interceptingStartConnection = intercepting.startConnection;
 										intercepting.startPoint = interceptingPoint;
 										intercepting.startConnection = null;
 										Wire leftWireSplice = new Wire(oldLeftLoc, interceptingPoint, c);
@@ -142,7 +143,7 @@ public class Wire extends SignalEntity
 									
 									if (intercepting.getBottomPoint().equals(intercepting.getStartPoint()))
 									{
-										ConnectionNode interceptingEndConnection = intercepting.getOutputConnection();		
+										ConnectionNode interceptingEndConnection = intercepting.endConnection;		
 										intercepting.endPoint = interceptingPoint;
 										intercepting.endConnection = null;
 										Wire topWireSplice = new Wire(oldTopLoc, interceptingPoint, c);
@@ -150,7 +151,7 @@ public class Wire extends SignalEntity
 									}
 									else
 									{
-										ConnectionNode interceptingStartConnection = intercepting.getInputConnection();
+										ConnectionNode interceptingStartConnection = intercepting.startConnection;
 										intercepting.startPoint = interceptingPoint;
 										intercepting.startConnection = null;
 										Wire topWireSplice = new Wire(oldTopLoc, interceptingPoint, c);
@@ -180,7 +181,7 @@ public class Wire extends SignalEntity
 			{
 				ConnectionNode node = (ConnectionNode) e;
 				Wire w = node.getConnectedWire();
-				if (w.startConnection == node || w.endConnection == node)
+				if (w != null && (w.startConnection == node || w.endConnection == node))
 				{
 					if (w.startConnection == node)
 					{
@@ -306,7 +307,7 @@ public class Wire extends SignalEntity
 	{
 		if (p.hasInterceptingWireJunction(circuit))
 		{
-			WireJunction junc = (WireJunction) p.getInterceptingEntity(circuit);
+			WireJunction junc = p.getInterceptingWireJunction(circuit);
 			junc.connectToWire(this);
 			connectedJunctions.add(junc);
 		}
@@ -407,66 +408,32 @@ public class Wire extends SignalEntity
 		{
 			status = true;
 			justUpdated = true;
-			for (WireJunction j : connectedJunctions)
-			{
-				j.transmit();
-			}
 			
-			if (hasOutputConnection())
+			for (WireJunction j : connectedJunctions)
+				j.transmit();
+			
+			if (startConnection != null)
+				startConnection.transmit();
+			if (endConnection != null)
+				endConnection.transmit();
+			
+		/*	if (hasOutputConnection())
 			{
 				getOutputConnection().transmit();
-			}
+			}*/
 		}
 	}
 
-	public boolean hasOutputConnection()
-	{
-		return getOutputConnection() != null;
-	}
-	
-	public boolean hasInputConnection()
-	{
-		return getInputConnection() != null;
-	}
-	
-	public ConnectionNode getOutputConnection()
-	{
-		if (startConnection != null && startConnection.isOutputConnection())
-		{
-			return startConnection;
-		}
-		if (endConnection != null && endConnection.isOutputConnection())
-		{
-			return endConnection;
-		}
-		return null;
-	}
-	
-	public ConnectionNode getInputConnection()
-	{
-		if (startConnection != null && startConnection.isInputConnection())
-		{
-			return startConnection;
-		}
-		if (endConnection != null && endConnection.isInputConnection())
-		{
-			return endConnection;
-		}
-		return null;
-	}
 	
 	public boolean getStatus()
 	{
 		return status;
 	}
-
-	public static final Color ON_COL = new Color(0, 255, 0);
-	public static final Color OFF_COL = new Color(0, 140, 0);
 	
 	@Override
 	public void draw(Graphics g)
 	{
-		g.setColor(status ? ON_COL : OFF_COL);
+		g.setColor(status ? Circuit.ON_COL : Circuit.OFF_COL);
 		int extraThicc = circuit.getGapBetweenPoints() / 9;
 		if (!horizontal) GraphicsTools.drawVerticalLine(startPoint, endPoint, extraThicc + circuit.getGridPointDrawOffset(), g, circuit);
 		else GraphicsTools.drawHorizontalLine(startPoint, endPoint, extraThicc + circuit.getGridPointDrawOffset(), g, circuit);
@@ -500,22 +467,14 @@ public class Wire extends SignalEntity
 	@Override
 	public String toString()
 	{
-		Vector dir = new Vector(startPoint, endPoint);
 		return startPoint + " -> " + endPoint + "(" + id + ")";
 	}
 
 	@Override
 	public void onDelete()
 	{
-		if (hasInputConnection())
-		{
-			getInputConnection().disconnectWire();
-		}
-		
-		if (hasOutputConnection())
-		{
-			getOutputConnection().disconnectWire();
-		}
+		if (endConnection != null) endConnection.disconnectWire();
+		if (startConnection != null) startConnection.disconnectWire();
 		updateWires(circuit);
 	}
 
@@ -555,5 +514,29 @@ public class Wire extends SignalEntity
 	public boolean withinDrawingBounds()
 	{
 		return withinDrawingBounds(endPoint, circuit) || withinDrawingBounds(startPoint, circuit);
-	}	
+	}
+
+	@Override
+	public List<BigPoint> getDefaultPointSet() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public List<BigPoint> determine0PointSet() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public boolean isMovable()
+	{
+		return false;
+	}
+	
+	@Override
+	public boolean isPowerSource()
+	{
+		return false;
+	}
 }

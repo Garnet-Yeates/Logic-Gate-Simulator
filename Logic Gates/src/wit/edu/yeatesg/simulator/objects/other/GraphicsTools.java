@@ -23,9 +23,7 @@ public class GraphicsTools
 		int xPos = topLoc.x + circuit.getGridPointDrawOffset() - extraThickness;
 		int yExtender = circuit.getGridPointDrawOffset() + - extraThickness;
 		for (int i = 0; i < circuit.getGridPointDrawSize() + extraThickness*2; i++, xPos++)
-		{
 			g.drawLine(xPos, topLoc.y + yExtender, xPos, bottomLoc.y - yExtender);
-		}
 	}
 
 	public static void drawHorizontalLine(BigPoint p1, BigPoint p2, int extraThickness, Graphics g, Circuit circuit)
@@ -46,9 +44,8 @@ public class GraphicsTools
 		int yPos = leftLoc.y + circuit.getGridPointDrawOffset() - extraThickness;
 		int xExtender = circuit.getGridPointDrawOffset() + - extraThickness;
 		for (int i = 0; i < circuit.getGridPointDrawSize() + extraThickness*2; i++, yPos++)
-		{
 			g.drawLine(leftLoc.x + xExtender, yPos, rightLoc.x - xExtender, yPos);
-		}
+		
 	}
 	
 	public static void drawSelectionCorners(BigPoint p, Color outer, Color inner, int size, Graphics g, Circuit circuit)
@@ -62,5 +59,4 @@ public class GraphicsTools
 		g.setColor(inner);
 		g.fillRect(drawLoc.x + offset, drawLoc.y + offset, size, size);
 	}
-
 }

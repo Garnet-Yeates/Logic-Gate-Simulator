@@ -7,6 +7,8 @@ public abstract class SignalEntity extends Entity
 	
 	public abstract void transmit();
 
+	public abstract boolean isPowerSource();
+	
 	public void setJustUpdated(boolean b)
 	{
 		justUpdated = b;
@@ -25,5 +27,5 @@ public abstract class SignalEntity extends Entity
 	public boolean getStatus()
 	{
 		return status;
-	}
+	}	
 }

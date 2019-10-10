@@ -5,4 +5,6 @@ import java.util.ArrayList;
 public abstract class Shape
 {	
 	public abstract ArrayList<BigPoint> getAllPoints();
+	
+	public abstract boolean intercepts(BigPoint p);
 }

@@ -1,15 +1,18 @@
 package wit.edu.yeatesg.simulator.objects.other;
 
+import java.awt.Color;
 import java.util.ArrayList;
 
 import wit.edu.yeatesg.simulator.objects.abstractt.Entity;
 import wit.edu.yeatesg.simulator.objects.abstractt.SignalEntity;
-import wit.edu.yeatesg.simulator.objects.abstractt.SignalSender;
 import wit.edu.yeatesg.simulator.objects.math.BigPoint;
 import wit.edu.yeatesg.simulator.objects.math.Vector;
 
 public class Circuit
 {
+	public static final Color ON_COL = new Color(0, 255, 0);
+	public static final Color OFF_COL = new Color(0, 170, 0);
+	
 	private ArrayList<Entity> entities;
 	private EditorPanel panel;
 	private Vector offset;
@@ -25,12 +28,6 @@ public class Circuit
 		entities = new ArrayList<Entity>();
 	}
 	
-	public void refreshTransmissions()
-	{
-		resetSignalEntities();
-		doTransmissions();		
-	}
-	
 	public void resetSignalEntities()
 	{
 		for (Entity e : entities)
@@ -38,16 +35,22 @@ public class Circuit
 			if (e instanceof SignalEntity)
 			{
 				((SignalEntity) e).setJustUpdated(false);
-				((SignalEntity) e).setStatus(false);
+				
+				if (!((SignalEntity) e).isPowerSource()) // Power sources have their on way of being toggled
+					((SignalEntity) e).setStatus(false);
 			}
 		}
 	}
 	
-	public void doTransmissions()
+	public void refreshTransmissions()
 	{
-		for (SignalSender transmitter : getAllSignalSenders())
+		resetSignalEntities();
+		for (Entity e : entities)
 		{
-			transmitter.transmit();
+			if (e instanceof SignalEntity && ((SignalEntity) e).isPowerSource())
+			{
+				((SignalEntity) e).transmit();
+			}
 		}
 	}
 	
@@ -56,18 +59,14 @@ public class Circuit
 		return panel;
 	}
 
-	
 	public void addEntity(Entity e)
 	{
 		entities.add(e);
 		panel.repaint();
 	}
-	
-	int cunt = 0;
-	
+		
 	public boolean removeEntity(Entity e)
 	{
-
 		boolean b = entities.remove(e);
 		System.out.println("Removed " + e + "? " + b);
 		return b;
@@ -78,20 +77,7 @@ public class Circuit
 	{
 		return (ArrayList<Entity>) entities.clone();
 	}
-	
-	public ArrayList<SignalSender> getAllSignalSenders()
-	{
-		ArrayList<SignalSender> senderList = new ArrayList<>();
-		for (Entity e : getAllEntities())
-		{
-			if (e instanceof SignalSender)
-			{
-				senderList.add((SignalSender) e);
-			}
-		}
-		return senderList;
-	} 
-	
+
 	public ArrayList<WireJunction> getAllWireJunctions()
 	{
 		ArrayList<WireJunction> junctionList = new ArrayList<>();
@@ -103,6 +89,19 @@ public class Circuit
 			}
 		}
 		return junctionList;
+	}
+	
+	public ArrayList<ConnectionNode> getAllConnectionNodes()
+	{
+		ArrayList<ConnectionNode> nodeList = new ArrayList<>();
+		for (Entity e : getAllEntities())
+		{
+			if (e instanceof ConnectionNode)
+			{
+				nodeList.add((ConnectionNode) e);
+			}
+		}
+		return nodeList;
 	}
 	
 	public ArrayList<Wire> getAllWires()
@@ -118,18 +117,6 @@ public class Circuit
 		return wireList;
 	}
 	
-	public boolean doesAnyEntityExistAt(BigPoint p)
-	{
-		for (Entity e : entities)
-		{
-			if (e.getLocation().equals(p))
-			{
-				return false;
-			}
-		}
-		return true;
-	}
-	
 	public int getGridPointDrawSize()
 	{
 		int r = gapBetweenPoints;
@@ -142,8 +129,6 @@ public class Circuit
 		size = (r >= 30) ? 2 : size;
 		size = (r >= 35) ? 3 : size;
 		size = (r >= 40) ? 3 : size;
-
-
 		return size;
 	}
 	

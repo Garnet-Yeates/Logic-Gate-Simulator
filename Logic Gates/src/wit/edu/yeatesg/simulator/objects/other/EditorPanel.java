@@ -39,13 +39,27 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 
 		Wire w1 = new Wire(new BigPoint(5, 5), new BigPoint(5, 10), circuit);
 		w1.getBottomPoint();
+		new InputBlock(new BigPoint(0, 0), circuit);
+		
+		new InputBlock(new BigPoint(10, 10), circuit);
+
+		
+		System.out.println(new BigPoint(0, 0).hasInterceptingConnectionNode(circuit));
+		
+	//	setDarkMode();
+	}
+	
+	private void setDarkMode()
+	{
+		backgroundColor = Color.BLACK;
+		bigPointColor = Color.DARK_GRAY;
 	}
 
 	@Override
-	public void paint(Graphics g)
+	protected void paintComponent(Graphics g)
 	{
-		super.paint(g);
-
+		g = g.create();
+	//	super.paintComponent(g);
 		drawBackground(g);
 		drawBigPoints(g);
 		drawEntities(g);
@@ -81,17 +95,46 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 		}
 	}
 
+	/**
+	 * Draws all of the Entities in the circuit. Some Entities are specifically drawn after others because
+	 * they have higher priority and shouldn't be overlapped. The higher up the Entity type is in the switch
+	 * statement, the higher its priority
+	 * @param g the Graphics instance being used to draw these entities
+	 */
 	private void drawEntities(Graphics g)
 	{
+		ArrayList<Entity> one = new ArrayList<>();
+		ArrayList<Entity> two = new ArrayList<>();
+		ArrayList<Entity> three = new ArrayList<>();
+
 		for (Entity e : circuit.getAllEntities())
 		{
-			if (e.withinDrawingBounds())
+			switch (e.getClass().getSimpleName())
 			{
-				e.draw(g);
+			case "ConnectionNode":
+				three.add(e); // Connection nodes are painted last, highest priority
+				break;
+			case "InputBlock": // Painted second to last, second highest priorty
+				two.add(e);
+				break;
+			default: // Painted before the other cases
+				one.add(e);
+				break;
 			}
 		}
+		
+		two.addAll(three);
+		one.addAll(two);
+		
+		for (Entity e : one)
+			if (e.withinDrawingBounds())
+				e.draw(g);
 	}
 	
+	/**
+	 * Draws the indicator to show the user that they are able to select a ConnectionNode or Wire start/end point.
+	 * @param g the Graphics instance used to draw this.
+	 */
 	private void drawConnectionSelectionPreview(Graphics g)
 	{
 		g.setColor(Color.BLACK);
@@ -107,6 +150,7 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 		}
 	}
 	
+	/** The currently selected entity */
 	private Entity selectedEntity = null;
 	
 	/**
@@ -195,7 +239,7 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 					{
 						if (betweenPointsValid(pressPoint, theoreticalReleasePoint))
 						{
-							theoreticalPositiveWireModification(pressPoint, theoreticalReleasePoint, null);
+							theoreticalPositiveWireModification(pressPoint, theoreticalReleasePoint, junc);
 						}
 					}	
 				}
@@ -217,7 +261,7 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 				}
 				else if (connectionDraggingFrom instanceof ConnectionNode)
 				{
-					// TODO We still need to handle this
+					theoreticalPositiveWireModification(pressPoint, theoreticalReleasePoint, connectionDraggingFrom);
 				}
 			}
 		}
@@ -231,7 +275,9 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 	private BigPoint lastMousePressLoc = null;
 	
 	/**
-	 * Called whenever the mouse is pressed in this EditorPanel. This method updates the 
+	 * Called whenever the mouse is pressed in this EditorPanel. This method updates the {@link #lastMouseLocation_pc},
+	 * {@link #lastMousePressLoc}, and {@link #middleClickHeld} fields. It also determines whether or not the user
+	 * is dragging from a connection or not, which updates {@link #connectionDraggingFrom}
 	 */
 	@Override
 	public void mousePressed(MouseEvent e)
@@ -240,9 +286,15 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 		lastMouseLocation_pc = LittlePoint.getPanelCoordinates(e);
 		middleClickHeld = e.getButton() == 2 ? true : false;
 
+		gridSnapPoint = BigPoint.closestTo(LittlePoint.getEditorCoords(lastMouseLocation_pc, circuit), circuit);
+		mousingOverConnectable = gridSnapPoint.hasInterceptingConnectable(circuit);
+		
+		System.out.println("Mouse Press At " + lastMouseLocation_pc);
+		System.out.println("Converted to BigPoint: " + BigPoint.fromPanelCoords(lastMouseLocation_pc, circuit));
+		
 		if (mousingOverConnectable)
 		{
-			connectionDraggingFrom = gridSnapPoint.getInterceptingEntity(circuit);
+			connectionDraggingFrom = gridSnapPoint.getInterceptingConnectable(circuit);
 		}
 		else // if mousing over hitbox...
 		{
@@ -319,7 +371,9 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 				}
 				else if (connectionDraggingFrom instanceof ConnectionNode)
 				{
-
+					ConnectionNode node = (ConnectionNode) connectionDraggingFrom;
+					if (node.getConnectedWire() == null)
+						positiveWireModification(pressPoint, releasePoint, node);
 				}
 			}
 			else if (pressPoint.equals(releasePoint) && connectionDraggingFrom != null)
@@ -330,6 +384,20 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 			}
 			else if (pressPoint.equals(releasePoint))
 			{
+				if (holdingP)
+				{
+					for (Entity ent : circuit.getAllEntities())
+					{
+						if (ent.isPokable())
+						{
+							if (ent.getSelectionBounds().intercepts(releasePoint))
+							{
+								ent.onPoke();
+							}
+						}
+					}
+
+				}
 				// Regular click on nothing in particular
 				selectedEntity = null;
 				// TODO later on this needs to look at all this hitboxes of non WireJunction, Wire, and ConnectionNode
@@ -371,9 +439,9 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 		wireModEnd = releasePoint;
 	}
 	
-	public void theoreticalPositiveWireModification(BigPoint pressPoint, BigPoint releasePoint, Wire w)
+	public void theoreticalPositiveWireModification(BigPoint pressPoint, BigPoint releasePoint, Entity e)
 	{
-		if (w == null || canPositiveWireModification(pressPoint, releasePoint, w))
+		if (canPositiveWireModification(pressPoint, releasePoint, e))
 		{
 			System.out.println("DISPLAY POS MOD");
 			wireModType = true;
@@ -393,7 +461,7 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 	 * {@link #wireModEnd} and {@link #wireModStart} are null then the user isn't currently modifying a wire, or they are modifying
 	 * a wire in an invalid way
 	 * @param g the Graphics instance used to draw this wire
-	 * @return false if no theoretical wire changes are being drawn
+	 * @return false if no theoretical wire changes are occuring
 	 */
 	private boolean drawTheoreticalWireChanges(Graphics g)
 	{
@@ -414,7 +482,7 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 			
 			if (!wireModType)
 			{
-				g.setColor(Color.GRAY);
+				g.setColor(bigPointColor);
 				wireModStart.draw(g, circuit);
 				if (BigPoint.getPointsBetween(wireModStart, wireModEnd).size() > 0)
 				{
@@ -426,7 +494,7 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 				
 				if (wireModEnd.hasInterceptingWireJunction(circuit))
 				{
-					WireJunction j = (WireJunction) wireModEnd.getInterceptingEntity(circuit);
+					WireJunction j = wireModEnd.getInterceptingWireJunction(circuit);
 					j.draw(g);
 				}
 			}
@@ -465,18 +533,19 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 		}
 	}
 
-	public void positiveWireModification(BigPoint pressPoint, BigPoint releasePoint, Wire w)
+	public void positiveWireModification(BigPoint pressPoint, BigPoint releasePoint, Entity draggingFrom)
 	{
-		if (canPositiveWireModification(pressPoint, releasePoint, w))
+		if (canPositiveWireModification(pressPoint, releasePoint, draggingFrom))
 		{
 			Wire edited = null;
-			if (w == null) // This means pressPoint was a junction so no wires are being extended, only created
+			if (draggingFrom == null) // This means pressPoint was a junction so no wires are being extended, only created
 			{
 				edited = new Wire(pressPoint, releasePoint, circuit);
 //				System.out.println("NEW WIRE FROM JUNCTION");
 			}
-			else
+			else if (draggingFrom instanceof Wire)
 			{
+				Wire w = (Wire) draggingFrom;
 				edited = w;
 
 				BigPoint startPoint = w.getStartPoint();
@@ -502,20 +571,25 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 				else
 				{
 					edited = new Wire(pressPoint, releasePoint, circuit);
-//					System.out.println("NEW WIRE FROM WIRE OR CONNECTION NODE");
+//					System.out.println("NEW WIRE FROM WIRE");
 				}
-
-				if (releasePoint.hasInterceptingConnectionNode(circuit))
-				{
-					ConnectionNode connection = (ConnectionNode) releasePoint.getInterceptingEntity(circuit);
-					connection.connect(edited);
-				}
-			}			
+			}
+			else if (draggingFrom instanceof ConnectionNode)
+			{
+				edited = new Wire(pressPoint, releasePoint, circuit);
+				// System.out.println("NEW WIRE FROM CONNECTION NODE");
+			}
+			
+			if (releasePoint.hasInterceptingConnectionNode(circuit) && edited != null)
+			{
+				ConnectionNode connection = releasePoint.getInterceptingConnectionNode(circuit);
+				connection.connect(edited);
+			}
 		}
 		Wire.updateWires(circuit);
 	}
 	
-	public boolean canPositiveWireModification(BigPoint pressPoint, BigPoint releasePoint, Wire w)
+	public boolean canPositiveWireModification(BigPoint pressPoint, BigPoint releasePoint, Entity draggingFrom)
 	{
 		// CANT INTERCEPT A JUNCTION OR A WIRE THAT IS GOING IN THE SAME DIRECTION AS IT (UNLESS INTERCEPTING ENDPOINTS)
 		boolean betweenPointsValid = betweenPointsValid(pressPoint, releasePoint) || pressPoint.isAdjacentTo(releasePoint);
@@ -524,7 +598,7 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 		boolean endPointValid = !releasePoint.hasInterceptingEntity(circuit) || releasePoint.hasInterceptingConnectable(circuit);
 		
 		// The start point is already checked in earlier methods, but if w is null (meaning the startpoint was a junction), then we have to make sure the junction isnt full
-		boolean startPointValid = w != null || ((WireJunction) pressPoint.getInterceptingEntity(circuit)).getConnectedWires().size() < 4;
+		boolean startPointValid = !(draggingFrom instanceof WireJunction) || pressPoint.getInterceptingWireJunction(circuit).getConnectedWires().size() < 4;
 		
 		// Make sure they are drawing a straight line for the Wire
 		boolean validWire = pressPoint.x == releasePoint.x || pressPoint.y == releasePoint.y;
@@ -545,17 +619,45 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 				{
 					return false;
 				}
+				if (p.hasInterceptingConnectionNode(circuit))
+				{
+					return false;
+				}
 				if (p.hasInterceptingWire(circuit))
 				{
-					Wire intercepting = (Wire) p.getInterceptingEntity(circuit);
-					if ( (intercepting.isHorizontal() && goingHorizontal) || (!intercepting.isHorizontal()) && !goingHorizontal)
+					Wire intercepting = p.getInterceptingWire(circuit);
+					if ((intercepting.isHorizontal() && goingHorizontal) || (!intercepting.isHorizontal()) && !goingHorizontal)
 					{
 						return false;
 					}
 				}
+				
 			}
 		}
 		else return false;
+		
+		// Make sure this isn't intercepting a big entity (like a logic gate or input box) at any point
+		// besides a connection node (see below)
+		
+		betweenPoints.add(pressPoint);
+		betweenPoints.add(releasePoint);
+		for (BigPoint p : betweenPoints)
+		{
+			if (p.hasInterceptingHitBoxEntity(circuit))
+			{
+				System.out.println("INTERCUNTCEPT");
+				boolean interceptsAtNode = false;
+				Entity intercepting = p.getInterceptingHitboxEntity(circuit);
+				if (intercepting.hasChildEntities())
+				{
+					for (Entity e : intercepting.getChildEntities())
+						if (e instanceof ConnectionNode && e.intercepts(p))
+							interceptsAtNode = true;
+				}
+				if (!interceptsAtNode)
+					return false;
+			}
+		}
 		return true;
 	}
 
@@ -565,16 +667,35 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 	 * around whatever it was centered around before it was zoomed in
 	 * @param in if this is false, then the circuit is zooming out
 	 */
-	public void zoom(boolean in)
+	public void zoom2(boolean in)
 	{
 		LittlePoint panelCenter = LittlePoint.getEditorCoords(new LittlePoint(width / 2, height / 2), circuit);
 		BigPoint bigPanelCenter = BigPoint.fromLittlePoint(panelCenter, circuit);
+		System.out.println("Big Panel Center " + bigPanelCenter);
 		if (circuit.zoom(in))
 		{
 			panelCenter = LittlePoint.fromBigPoint(bigPanelCenter, circuit);
 			circuit.resetOffset();
 			circuit.modifyOffset(new Vector(width / 2, height / 2));
 			circuit.modifyOffset(new Vector(panelCenter.x, panelCenter.y).multiply(-1));
+		}
+		repaint();
+	}
+	
+	public void zoom(boolean in)
+	{
+		LittlePoint focalPoint = LittlePoint.getEditorCoords(new LittlePoint(width / 2, height / 2), circuit);
+		focalPoint = LittlePoint.getEditorCoords(lastMouseLocation_pc, circuit);
+		BigPoint bigFocalPoint = BigPoint.fromLittlePoint(focalPoint, circuit);
+		System.out.println("Big Panel Center " + bigFocalPoint);
+		if (circuit.zoom(in))
+		{
+			circuit.resetOffset();
+			focalPoint = LittlePoint.fromBigPoint(bigFocalPoint, circuit);
+			LittlePoint newMouseLoc = LittlePoint.getEditorCoords(lastMouseLocation_pc, circuit);
+			int x = focalPoint.x - newMouseLoc.x;
+			int y = focalPoint.y - newMouseLoc.y;
+			circuit.modifyOffset(new Vector(-1*x, -1*y));
 		}
 		repaint();
 	}
@@ -594,7 +715,8 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 
 	boolean holdingCtrl = false;
 	boolean holdingSpce = false;
-
+	boolean holdingP = false;
+	
 	@Override
 	public void keyPressed(KeyEvent e)
 	{
@@ -612,6 +734,9 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 		case KeyEvent.VK_CONTROL:
 			holdingCtrl = true;
 			break;
+		case KeyEvent.VK_P:
+			holdingP = true;
+			break;
 		}
 	}
 
@@ -625,6 +750,9 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 			break;
 		case KeyEvent.VK_SPACE:
 			holdingSpce = false;
+			break;
+		case KeyEvent.VK_P:
+			holdingP = false;
 			break;
 		}
 	}
@@ -668,7 +796,7 @@ public class EditorPanel extends JPanel implements MouseListener, KeyListener, M
 	@Override
 	public void mouseClicked(MouseEvent e)
 	{
-		System.out.println(LittlePoint.getEditorCoords(LittlePoint.getPanelCoordinates(e), circuit));
+		lastMouseLocation_pc = LittlePoint.getPanelCoordinates(e);
 	}
 
 	@Override

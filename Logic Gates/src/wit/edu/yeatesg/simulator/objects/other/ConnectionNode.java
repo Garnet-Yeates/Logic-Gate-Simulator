@@ -1,10 +1,11 @@
 package wit.edu.yeatesg.simulator.objects.other;
 
 import java.awt.Graphics;
+import java.util.List;
 
-import wit.edu.yeatesg.simulator.objects.abstractt.Entity;
 import wit.edu.yeatesg.simulator.objects.abstractt.SignalEntity;
 import wit.edu.yeatesg.simulator.objects.math.BigPoint;
+import wit.edu.yeatesg.simulator.objects.math.LittlePoint;
 import wit.edu.yeatesg.simulator.objects.math.Shape;
 
 public class ConnectionNode extends SignalEntity
@@ -12,8 +13,33 @@ public class ConnectionNode extends SignalEntity
 	private boolean input;
 	private Wire connected;
 	
+	public ConnectionNode(BigPoint loc, Circuit c)
+	{
+		location = loc;
+		circuit = c;
+		checkInterferingEntity();
+		circuit.addEntity(this);
+	}
+	
 	@Override
-	public void draw(Graphics g) {
+	public void transmit()
+	{
+		if (!justUpdated)
+		{
+			status = true;
+			justUpdated = true;
+			if (connected != null) connected.transmit();
+		}
+	}
+	
+	@Override
+	public void draw(Graphics g)
+	{
+		LittlePoint drawPoint = LittlePoint.getPanelCoords(location, circuit);
+		int offset = -1*circuit.getGapBetweenPoints() / 4;
+		int length = -1*offset * 2;
+		g.setColor(status ? Circuit.ON_COL : Circuit.OFF_COL);
+		g.fillOval(drawPoint.x + offset, drawPoint.y + offset, length, length);
 		// TODO Auto-generated method stub
 		
 	}
@@ -21,8 +47,7 @@ public class ConnectionNode extends SignalEntity
 	@Override
 	public boolean intercepts(BigPoint p)
 	{
-		// TODO Auto-generated method stub
-		return false;
+		return p.equals(location);
 	}
 
 	@Override
@@ -52,18 +77,6 @@ public class ConnectionNode extends SignalEntity
 		return null;
 	}
 	
-	@Override
-	public void drawSelectionIndicator(Graphics g)
-	{
-		// Dont do shit, rlly
-	}
-
-	@Override
-	public void transmit() {
-		// TODO Auto-generated method stub
-		
-	}
-	
 	public boolean isInputConnection()
 	{
 		return input;
@@ -74,4 +87,29 @@ public class ConnectionNode extends SignalEntity
 		return !input;
 	}
 
+	@Override
+	public List<BigPoint> getDefaultPointSet()
+	{
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public List<BigPoint> determine0PointSet()
+	{
+		// TODO Auto-generated method stub
+		return null;
+	}
+	
+	@Override
+	public boolean isMovable() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean isPowerSource()
+	{
+		return false;
+	}
 }
